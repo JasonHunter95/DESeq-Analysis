@@ -60,3 +60,5 @@ ATACSeqData/key_mouse_atac_data.Rdata
 *.html
 *.md
 *.pdf
+
+knit_me_B_files
