@@ -41,7 +41,7 @@ The `nf-core/rnaseq` pipeline was executed, generating standard output directori
 
 ```{r load-raw-counts}
 # define path to the pipeline output file
-counts_file <- "/pipeline_output/star_salmon/salmon.merged.gene_counts.tsv"
+counts_file <- "DESeqResults/salmon.merged.gene_counts.tsv"
 
 # load the raw counts matrix (genes as rows, samples as columns)
 # row names are Ensembl Gene IDs, first column contains gene symbols
