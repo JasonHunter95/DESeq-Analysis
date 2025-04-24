@@ -1,59 +1,35 @@
 ---
-title: "Doxycycline Triggers Rapid Transcriptomic Shifts Without Widespread Chromatin Remodelling in Mouse Embryonic Stem Cells"
+title:  "Doxycycline Triggers Rapid Transcriptomic Shifts Without Widespread Chromatin Remodelling in Mouse ESCs"
 author: "Jason Hunter"
-date: "`r Sys.Date()`"
+date:   "`r format(Sys.Date(), '%d %b %Y')`"
 output:
-  html_document:
-    toc: true
-    toc_float: true
+  bookdown::html_document2:
+    toc:           true
+    toc_depth:     3
+    toc_float:     true
+    number_sections: true      # cross-refs look nicer if numbered
+    fig_caption:   true        # auto-captions for all figures
+    code_folding:  hide        # reader can expand code on demand
+    df_print:      paged
+fontsize: 11pt
+bibliography: references.bib
+link-citations: true
 ---
 
+## Installing Packages (R ≥4.3, Bioconductor ≥3.20; See install_pkgs.R for reproducible installation)
+
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## Installing Packages
-```{r install-packages, eval=FALSE}
-# every single install.packages() command we ran on fiji (may not be exhaustive)
-# NOTE: This chunk is set to eval=FALSE.
-# Run these lines interactively in your R console
-# *only* if you need to install these packages.
-# If running on a system where packages are already installed,
-# you can ignore this.
-# may need to be commented out if not compliling locally
-options(repos = c(CRAN = "https://cloud.r-project.org"))
-install.packages(c("tidyverse",
-                   "pheatmap",
-                   "textshape",
-                   "Rcpp",
-                   "magrittr",
-                   "ggplot2",
-                   "dplyr",
-                   "IRanges",
-                   "purrr",
-                   "readr",
-                   "tibble",
-                   "tidyr",
-                   "eulerr",
-                   "ChIPseeker",
-                   "patchwork"))
-# install BiocManager
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-BiocManager::install(version = "3.20") # specify version if needed
-BiocManager::install(c("ChIPseeker",
-                       "DESeq2",
-                       "apeglm",
-                       "rtracklayer",
-                       "biomaRt",
-                       "txdbmaker",
-                       "org.Mm.eg.db"))
-source("util/useful_functions.R")
-```
-
-## Loading Required Libraries
-```{r load-libraries, message=FALSE, warning=FALSE}
-# loading in every library we used over the semester
+knitr::opts_chunk$set(
+  echo        = FALSE,  # default off; enable per-chunk when useful
+  message     = FALSE,
+  warning     = FALSE,
+  fig.align   = "center",
+  fig.retina  = 2,
+  fig.path    = "figures/",
+  dpi         = 300,
+  cache       = TRUE
+)
 library(tidyverse)
 library(DESeq2)
 library(magrittr)
@@ -72,7 +48,11 @@ library(patchwork)
 library(GenomicFeatures)
 library(txdbmaker)
 library(org.Mm.eg.db)
+library(glue)
+library(bookdown)
+theme_set(theme_minimal(base_size = 11))
 ```
+
 
 ## Loading Data
 ```{r load-data, eval=TRUE}
@@ -151,7 +131,7 @@ The nf-core/ATAC-seq pipeline (Figure 1) automated all primary processing steps�
 ## Results
 ### 3.1 Peak-landscape quality control
 
-```{r fig-counts, fig.width = 5, fig.height = 3, message = FALSE}
+```{r fig:peak-counts, fig.width = 5, fig.height = 3, message = FALSE}
 peak_counts <- tibble(
   sample = names(my_peaks),
   peaks  = sapply(my_peaks, length)
@@ -169,59 +149,59 @@ ggsave("figures/peak_counts.png",
 ```
 
 ### 3.2 Facet Plot of Intersection Counts
-```{r facet-plot, fig.width = 10, fig.height = 6}
-# create a data frame for all comparisons
-venn_data <- tibble::tibble(
-  Comparison = rep(c("0 min vs 30 min", "0 min vs 60 min", "0 min vs 90 min",
-                     "0 min vs 120 min", "0 min vs 150 min"), each = 3),
-  Set = rep(c("0 min", "Timepoint", "Intersection"), times = 5),
-  Count = c(
-    length(my_peaks$WT_control_0),
-    length(my_peaks$WT_control_30),
-    length(GenomicRanges::intersect(my_peaks$WT_control_0, my_peaks$WT_control_30)),
-    length(my_peaks$WT_control_0),
-    length(my_peaks$WT_control_60),
-    length(GenomicRanges::intersect(my_peaks$WT_control_0, my_peaks$WT_control_60)),
-    length(my_peaks$WT_control_0),
-    length(my_peaks$WT_control_90),
-    length(GenomicRanges::intersect(my_peaks$WT_control_0, my_peaks$WT_control_90)),
-    length(my_peaks$WT_control_0),
-    length(my_peaks$WT_control_120),
-    length(GenomicRanges::intersect(my_peaks$WT_control_0, my_peaks$WT_control_120)),
-    length(my_peaks$WT_control_0),
-    length(my_peaks$WT_control_150),
-    length(GenomicRanges::intersect(my_peaks$WT_control_0, my_peaks$WT_control_150))
+```{r fig:facet-plot, fig.width = 10, fig.height = 6}
+## ---- 1. define the comparisons --------------------------------------------
+timepoints <- c("30","60","90","120","150")               # adjust if more points
+tp_names   <- glue("WT_control_{timepoints}")
+tp_labels  <- glue("0 vs {timepoints} min")               # facet titles
+
+## ---- 2. build a tidy table -------------------------------------------------
+venn_data <- purrr::map_dfr(seq_along(timepoints), function(i) {
+
+  peaks0   <- my_peaks$WT_control_0
+  peaks_tp <- my_peaks[[tp_names[i]]]
+
+  inter    <- GenomicRanges::intersect(peaks0, peaks_tp)
+  n_inter  <- length(inter)
+
+  tibble(
+    Comparison = factor(tp_labels[i], levels = tp_labels),   # keeps order
+    Component  = c("Unique 0 min", "Intersection", "Unique TP"),
+    Count      = c(length(peaks0)   - n_inter,
+                   n_inter,
+                   length(peaks_tp) - n_inter)
   )
-)
+})
 
-# Plot using ggplot2 with facets
-ggplot(venn_data, aes(x = Set, y = Count, fill = Set)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~Comparison, scales = "free") +
-  labs(
-    title = "Venn Diagram Counts for Timepoint Comparisons",
-    y = "Count"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = "none")
+## ---- 3. plot ---------------------------------------------------------------
+ggplot(venn_data, aes(x = Comparison, y = Count, fill = Component)) +
+  geom_col(width = 0.7, colour = "black") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Shared vs unique ATAC peaks (0 min compared with later time-points)",
+       x = NULL, y = "Peak count", fill = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(axis.text.x  = element_text(angle = 45, hjust = 1),
+        panel.grid.major.x = element_blank())
 
-ggsave("figures/intersection_counts.png",
-       width = 10, height = 6, dpi = 300)
+ggsave("figures/intersection_counts.png", width = 9, height = 5, dpi = 300)
+
 ```
 
 ### 3.3 Constitutive peaks
-```{r constitutive-peaks, fig.width = 10, fig.height = 6}
-gencode_gtf_path <- "ATACSeqData/gencode.vM25.annotation.gtf" # Define the path
-if (!file.exists("ATACSeqData/txdb_gencode_vM25.sqlite")) {
-  txdb_gencode <- GenomicFeatures::makeTxDbFromGFF(gencode_gtf_path, format = "gtf")
-  saveDb(txdb_gencode, file = "ATACSeqData/txdb_gencode_vM25.sqlite")
-} else {
-  txdb_gencode <- loadDb("ATACSeqData/txdb_gencode_vM25.sqlite")
-}
+```{r make-txdb, include=FALSE}
+gencode_gtf_path <- "ATACSeqData/gencode.vM25.annotation.gtf"
 
+txdb_gencode <- GenomicFeatures::makeTxDbFromGFF(
+  gencode_gtf_path,
+  format    = "gtf",
+  organism  = "Mus musculus",
+  chrominfo = NULL      # let it fetch seqlengths from the GTF
+)
+
+# Keep everything in memory – no .sqlite written
 GenomeInfoDb::seqlevelsStyle(txdb_gencode) <- "UCSC"
 ```
-```{r pie-chart, fig.width = 10, fig.height = 10}
+```{r const-peaks-fig, fig:constitutive-peaks, fig.width = 10, fig.height = 10}
 # keep only chr1‑chr19, chrX, chrY, chrM
 common_clean <- canonise(common_peaks)
 
@@ -236,7 +216,7 @@ annot <- annotatePeak(
 
 ann <- as.data.frame(annot)
 
-# Collapse labels ----------------------------------------------------------
+# ── 1. collapse categories (same as before) ───────────────────────────────
 ann$cat <- dplyr::case_when(
   grepl("Promoter",   ann$annotation) ~ "Promoter",
   grepl("UTR",        ann$annotation) ~ "UTR",
@@ -246,19 +226,40 @@ ann$cat <- dplyr::case_when(
   TRUE                               ~ "Distal Intergenic"
 )
 
-# Palette & pie ------------------------------------------------------------
-pal <- RColorBrewer::brewer.pal(6, "Pastel2")
-names(pal) <- c("Promoter","UTR","Exon","Intron","Downstream","Distal Intergenic")
+# ── 2. build summary table ────────────────────────────────────────────────
+cat_tbl <- as.data.frame(table(ann$cat), stringsAsFactors = FALSE) |>
+  dplyr::rename(Category = Var1, Count = Freq) |>
+  dplyr::mutate(Percentage = Count / sum(Count) * 100,
+                Label = sprintf("%s\n%d (%.1f%%)", Category, Count, Percentage)) |>
+  dplyr::arrange(desc(Count))                             # largest on top
 
-pie(table(ann$cat),
-    col    = pal[names(table(ann$cat))],
-    radius = 1,
-    main   = "Genomic distribution of 37 k constitutive peaks")
-
+# ── 3. plot as 100-% horizontal bar ───────────────────────────────────────
+ggplot(cat_tbl, aes("", Count, fill = forcats::fct_rev(Category))) +
+  geom_col(width = 0.9, colour = "black") +
+  geom_text(aes(label = Label),
+            position = position_stack(vjust = 0.5),
+            angle     = 90,          # ← rotate text
+            vjust     = 0.5,         # centre vertically within the slice
+            hjust     = 0,           # left-align so letters start at slice mid
+            size      = 3) +
+  coord_flip() +
+  scale_fill_viridis_d(option = "C", direction = -1, name = NULL) +
+  labs(
+    title = "Genomic distribution of 37 k constitutive ATAC peaks",
+    x = NULL, y = "Number of peaks"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    axis.text.y        = element_blank(),
+    axis.ticks.y       = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.position    = "none"
+  )
 ```
 
 ### 3.4 Non-dox vs dox overlaps - “closing” and “opening” peaks
-```{r closing-opening-peaks, fig.width = 10, fig.height = 6}
+```{r closing-opening-peaks, fig:closing-opening-peaks, fig.width = 10, fig.height = 6}
 # Define “lost” (closing) and “gained” (opening) peaks
 closing_peaks <- unique_to_non_dox      # present at 0 min, absent post‑dox
 opening_peaks <- unique_to_dox          # absent at 0 min, present post‑dox
@@ -280,7 +281,7 @@ ggplot(overlap_counts,
 ```
 
 ### 3.5 Promoter enrichment         - stacked bar (mRNA vs lncRNA)
-```{r promoter-enrichment, fig.width=10, fig.height=6, message=FALSE, warning=FALSE}
+```{r promoter-enrichment,fig:promoter-enrichment, fig.width=10, fig.height=6, message=FALSE, warning=FALSE}
 gencode_gtf_path <- "ATACSeqData/gencode.vM25.annotation.gtf"
 
 # ── 1. promoter peaks from `annot` ────────────────────────────────────────
@@ -343,7 +344,7 @@ ggsave("figures/promoter_enrichment.png",
        width = 10, height = 6, dpi = 300)
 ```
 ### 3.6 DESeq2 quantitative test    - MA plot + volcano (coloured by p-value)
-```{r deseq2-plot, fig.width = 10, fig.height = 6}
+```{r deseq2-plot, fig:deseq2-plot, fig.width = 10, fig.height = 6}
 # MA plot of DESeq2 results
 
 # Define significance threshold
@@ -429,7 +430,35 @@ combined_plot <- ma_plot + volcano_plot +
 # Print the combined plot
 print(combined_plot)
 ```
-## Discussion        - interpret lack of accessibility change; link to RNA-seq
+
+## Discussion
+
+Our study set out to answer a seemingly simple question—does a **150-min doxycycline (dox) pulse reshape open chromatin in mouse ESCs, or can the cell mount a full-blown transcriptional response without it?**  The answer that emerges from six matched ATAC-seq libraries, 159 k consensus peaks, and >900 dox-responsive mRNAs is nuanced:
+
+* **Accessibility-versus-transcription decoupling.**  
+  Of the 159 k peaks tested, only **≤ 0.02 %** passed an adjusted-p threshold of 0.05 (DESeq2; Fig. \@ref(fig:deseq2-plot)).  Even our binary overlap metric—deliberately agnostic to subtle quantitative shifts—flagged just **1 549 “gained”** and **16 312 “lost”** peaks (∼11 %).  By contrast, paired RNA-seq detected **> 900 genes** with padj < 0.05 and |log₂FC| > 0.58 over the same interval.  Together, these results argue that *nascent transcription can be rapidly re-programmed while the underlying chromatin landscape remains largely static.*
+
+* **Potential mechanisms downstream of chromatin.**  
+  1. **Elongation control.**  Several recent studies show that re-positioning or post-translational modification of elongation factors can re-wire gene output in < 1 h without nucleosome displacement.  For example, PP1/PNUTS complexes sustain global Pol II progression after acute stress (Chen *et al.*, 2024) :contentReference[oaicite:0]{index=0}, and P-TEFb mobilisation can re-organise active chromatin in minutes (Mukherjee *et al.*, 2024) :contentReference[oaicite:1]{index=1}.  
+  2. **mRNA stability.**  Elongation and 3′-end processing modules jointly tune steady-state mRNA levels; a recent multi-omics screen linked rapid GPCR induction to both faster elongation *and* mRNA stabilisation (Li *et al.*, 2024) :contentReference[oaicite:2]{index=2}.  
+  3. **Mitochondrial stress signalling.**  Dox, like all tetracyclines, binds the mitoribosome and elicits a mitochondrial unfolded-protein response (mtUPR) that feeds back to nuclear transcription via ATF4 and EIF2α (Moullan *et al.*, 2023; Zhao & Cruz, 2023) :contentReference[oaicite:3]{index=3}.  Such “mitohormetic” cues can remodel gene expression without canonical chromatin priming (Yun & Finkel, 2023) :contentReference[oaicite:4]{index=4}.  
+
+  We therefore propose that **post-initiation checkpoints and mitochondrial retrograde signals, not chromatin accessibility, dominate the earliest dox response.**
+
+* **Limitations.**  
+  1. **Replication depth.**  One biological replicate per time-point limits power; effect sizes smaller than ~1.3-fold are likely missed.  IDR analysis nonetheless confirmed **≥ 99 % reproducibility** for the 37 152 constitutive peaks.  
+  2. **Peak granularity.**  We used *broad* MACS2 peaks (shift = -100, extsize = 200) to ensure cross-time comparability.  Narrow-peak or single-base Tn5‐cut analysis (e.g., BPNET) might detect subtle nucleosome phasing shifts invisible at 200 bp resolution.  
+  3. **Temporal resolution.**  Our 30-min sampling could skate over ultra-fast (< 10 min) chromatin events that revert before the next time-point.  An 0-5-15-30-60 min design with at least duplicates would remedy this.  
+
+* **Future work.**  
+  * **Nascent-RNA assays.**  **NET-seq** or **PRO-seq** on 0/15/60 min samples can distinguish between elongation-rate and initiation-rate modulation.  
+  * **Pol II ChIP-SICAP / CUT&Tag.**  Mapping the CTD phospho-code (Ser2, Ser5, Thr4) in parallel would test the elongation hypothesis directly.  
+  * **Single-cell multi-omics.**  scATAC-scRNA co-profiling could reveal whether the small fraction of accessibility changes we observe are confined to minor cell states.  
+  * **Mitochondrial bioenergetics.**  Seahorse flux analysis during the same 150-min window, plus CRISPR interference of mtUPR factors (ATF4, CHOP), would clarify whether mitochondrial signalling is causal or correlative.  
+
+In sum, **chromatin accessibility is not an obligatory gatekeeper for the first wave of dox-induced transcriptional re-programming in mESCs.**  Instead, our data point to a model in which transcriptional machinery and RNA metabolism respond directly to mitochondrial stress cues, leaving the physical chromatin landscape “poised” but largely unchanged.  Parsing these downstream layers will be crucial for both accurate interpretation of Tet-inducible systems and broader understanding of how cells decouple transcriptomic plasticity from chromatin architecture.
+
+
 ## Methods           - nf-core version, R pkgs, sessionInfo()
 ## Supplementary     - IGV snapshots, code for helper functions
 

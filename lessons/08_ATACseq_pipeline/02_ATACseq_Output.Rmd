@@ -22,28 +22,54 @@ There is a multiqc .html report - transfer to your comp and open - it's here:
 # Look through and answer these questions:
 - How many reads per sample?
 
+
 - Did the X or Y chromosome get more reads mapped?
+The X chromosome is larger than the Y chromosome, so it is expected to have more reads mapped.
+This is shown in MERGED LIB: SAMTools (filtered) XY counts section.
 
 - what was roughly the average insert size (size of DNA from ATACseq)?
+The rough average insert size across your ATAC-seq data is approximately 75-100 base pairs,
+with a strong enrichment around ~50 bp consistent with open chromatin.
 
-- what can you conclude from the "Read Distribution Profile after Annotation" ?
+
+- what can you conclude from the "Read Distribution Profile after Annotation"?
+This shows strong TSS enrichment, indicating that the ATAC-seq peaks are enriched around transcription start sites (TSS) of genes.
 
 * MACS2 section has a bunch of cool results:
 - How many peaks were called (estimate)?
+Approximately ~900,000 peaks in total across all samples.
+
 - What percentage of reads were inside peaks?
     - hint: FRiP score
     - what do you make of this?
+The data quality is highest in KO samples, especially ESC_KO_control_90_REP1.
+Some WT replicates may benefit from further filtering or re-sequencing for sharper signal.
+
     
 - What type of annotation (HOMER) did most peaks land on?
+The majority of peaks are annotated as either “intron” or “promoter-TSS”.
+Together, intron + promoter-TSS peaks account for ~70-75% of all annotations — a strong signal of meaningful chromatin accessibility in regulatory regions.
 
 - Which category do you think has the smallest genome space but most peaks considering ...?
+Promoter-TSS regions occupy the smallest proportion of the genome yet harbor one of the highest densities of ATAC-seq peaks —
+a hallmark of well-targeted, biologically relevant chromatin accessibility data.
 
 - The PCA plot tells you how similar the samples are to each other
     - There is an important trend that maybe of CONCERN?
+There's strong sample separation along PC1 — potentially biological or technical.
+This can be verified with sample metadata to determine
+if the separation is due to biological differences (e.g., time points) or technical artifacts (e.g., batch effects).
     
 - Interestingly the heat map doesn't look as bad as the PCA plot.
     - red means smaller distance or more similar.
 - If you had to say there are two trends, how many samples in each category?
+There appear to be two main clusters, each with 6 samples, likely representing:
+
+Group 1: KO (top-left block)
+
+Group 2: WT (bottom-right block)
+
+This supports that biological condition (KO vs WT) is a major source of variation — consistent with what we suspected from the PCA.
 
 # (2) RESULTS - Raw Data (BigWig) !
 In your pipeline output directory there is a folder called BWA.
