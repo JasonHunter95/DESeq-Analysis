@@ -65,3 +65,10 @@ knit_me_B_files
 knit_me_C_files
 
 txdb_gencode_vM25.sqlite
+
+# Ignore specific directories
+human_DOX/
+human_atacseq/
+human_rnaseq/
+mouse_atacseq/
+mouse_rnaseq/
