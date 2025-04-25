@@ -12,7 +12,6 @@
 .Rproj.user
 .Rhistory
 .Ruserdata
-*GENOME*
 .Rproj.user
 .Rhistory
 .Ruserdata
@@ -61,6 +60,7 @@ ATACSeqData/key_mouse_atac_data.Rdata
 *.md
 *.pdf
 
+knit_me_A_files
 knit_me_B_files
 knit_me_C_files
 
@@ -72,3 +72,4 @@ human_atacseq/
 human_rnaseq/
 mouse_atacseq/
 mouse_rnaseq/
+GENOMES/

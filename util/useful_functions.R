@@ -347,7 +347,3 @@ find_my_peaks <- function(common_peaks, original_peaks) {
   # return peaks in condition selected
   return(unique_peaks)
 }
-
-
-
-
